@@ -74,8 +74,8 @@ class BallTracker:
 
 def parseArgs():
     ap = argparse.ArgumentParser()
-    ap.add_argument('-i', '--image', required=True,
-                    help = 'path to input image')
+    ap.add_argument('-i', '--input', required=True,
+                    help = 'path to input image, video or directory with images')
     ap.add_argument('-c', '--config', required=False, default="yolo/yolov3.cfg",
                     help = 'path to yolo config file')
     ap.add_argument('-w', '--weights', required=False, default="yolo/yolov3.weights",
@@ -94,17 +94,38 @@ if __name__ == "__main__":
     args = parseArgs()
 
     tracker = BallTracker(args.config, args.classes, args.weights, args.confidence_threshold, args.confidence_nsm)
-    if os.path.isfile(args.image):
-        images = [args.image]
-    elif os.path.isdir(args.image):
-        images = sorted(glob.glob(os.path.join(args.image, "*.*")))
 
-    for input_image_path in images:
+    video = False
+    if os.path.isdir(args.input):
+        images = sorted(glob.glob(os.path.join(args.input, "*.*")))
+    
+    elif os.path.isfile(args.input):
+        if ".avi" in args.input or ".mp4" in args.input:
+            video = True
+        else:
+            images = [args.input]
 
-        image = cv2.imread(input_image_path)
-        tracker.predict(image, draw=True)
 
-        cv2.imshow("object detection", image)
-        cv2.waitKey()
+    if video:
+        cap = cv2.VideoCapture(args.input)
+        while(cap.isOpened()):
+            ret, frame = cap.read()
+            if ret == True:
+                tracker.predict(frame, draw=True)
+                cv2.imshow('frame', frame)
+                # & 0xFF is required for a 64-bit system
+                if cv2.waitKey(1) & 0xFF == ord('q'):
+                    break
+            else:
+                break
 
-        cv2.destroyAllWindows()
+    else:
+        for input_image_path in images:
+
+            image = cv2.imread(input_image_path)
+            tracker.predict(image, draw=True)
+
+            cv2.imshow("object detection", image)
+            if cv2.waitKey() & 0xFF == ord('q'):
+                break
+
